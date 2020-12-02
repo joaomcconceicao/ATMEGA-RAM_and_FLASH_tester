@@ -1,4 +1,4 @@
-# ATMEGA-RAM_and_FLASH_tester
+# AVR-RAM_and_FLASH_tester
 
 ## This software is for testing if the RAM and FLASH memory of AVR based devices are corrupted
 
