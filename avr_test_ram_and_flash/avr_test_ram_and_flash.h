@@ -11,7 +11,8 @@
 #define CHECKSUM_EEPROM_ADDRESS 0x0000
 
 int8_t testFlash();
-int8_t testRam();
+int8_t testRam(uint8_t base, uint8_t top);
+uint16_t generateChecksum();
 
 void testError(void arg){
 
@@ -22,7 +23,7 @@ void testError(void arg){
 #ifdef TEST_RAM	// uncomment TEST_RAM to test the ram (0 for r0 part other value for r1 part of MATS++)
 	void __attribute__((constructor)) TestRAM() {  // this method is not portable it may not work on all compilers !!! it serves to call this function before the execution of the main function
 
-		if(testRam()){
+		if(testRam(RAM_BASE_ADDRESS, 0)){
             testError();
         }
 		

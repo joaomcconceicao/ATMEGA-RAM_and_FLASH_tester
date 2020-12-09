@@ -3,6 +3,7 @@
 	Developed by: Francisco Oliveira & Joao Conceicao
 	02/12/2020
 	
+
 	Explanation:
 	
 		- Software to test the integrity of RAM and FLASH memory on ATMEGA devices, using the MATS++ algorithm for testing RAM and using a checksum to test the FLASH in order to preserve the lifespan of the FLASH memory
@@ -17,12 +18,11 @@
 		- ATMEGA328P
 	
 	NOTE: 	- It may work on different ATMEGA ICs but the RAM and FLASH addresses need to be changed accordingly !!!
-		- The testError() function is only to be used as is if the software is to be used in an Arduino UNO platform (ATMEGA328P), if you want to use it differently change the code inside to suit your needs
 	
 	TODO: 	
 		- create fault injection for FLASH memory (maybe an ifdef that injects an extra line of code in the program)
-		- add relevant comments
 		- format the code properly (make it pretty and readable)
+		- for some reason using the #define has a return types for functions or as arguments gives a does not name a type error
 */
 
 
@@ -30,21 +30,18 @@
 
 #include "avr_test_ram_and_flash.h"
 
-#define RAM_SIZE 2048 // Number of addresses in the ATMEGA's SRAM 
-#define RAM_BASE_ADDRESS 0x0100	// SRAM base address (the lower values are reserved for the ATMEGA's registers)
-#define RAM_TOP_ADDRESS (RAM_BASE_ADDRESS + RAM_SIZE) // SRAM top address, calculated from the base address and size
-#define RAM_POINTER uint8_t	// The size of the SRAM elements (on ATMEGA328P is 8 bit, change if your platform is different)  (ATMEGA328P SRAM size = 2048 x 8bit)
+#define RAM_SIZE 2048 										// Number of addresses in the ATMEGA's SRAM 
+#define RAM_BASE_ADDRESS 0x0100								// SRAM base address (the lower values are reserved for the ATMEGA's registers)
+#define RAM_TOP_ADDRESS (RAM_BASE_ADDRESS + RAM_SIZE)		// SRAM top address, calculated from the base address and size
+#define RAM_POINTER uint8_t									// The size of the SRAM elements (on ATMEGA328P is 8 bit, change if your platform is different)  (ATMEGA328P SRAM size = 2048 x 8bit)
 
-#define FLASH_SIZE 0x3FFF // Number of FLASH memory addresses in the ATMEGA's FLASH
-#define FLASH_BASE_ADDRESS 0x0000 // FLASH base address
+#define FLASH_SIZE 0x3FFF 									// Number of FLASH memory addresses in the ATMEGA's FLASH
+#define FLASH_BASE_ADDRESS 0x0000 							// FLASH base address
 #define FLASH_TOP_ADDRESS (FLASH_BASE_ADDRESS + FLASH_SIZE) // FLASH top address, calculated from the base address and size
-#define FLASH_POINTER uint16_t // The size of the FLASH elements (on ATMEGA328P is 16 bit, change if your platform is different) (ATMEGA328P FLASH size = 32k x 16bit)
-#define FLASH_CHECKSUM uint16_t // Size of the checksum
+#define FLASH_POINTER uint16_t 								// The size of the FLASH elements (on ATMEGA328P is 16 bit, change if your platform is different) (ATMEGA328P FLASH size = 32k x 16bit)
+#define FLASH_CHECKSUM uint16_t 							// Size of the checksum
 
-#define CHECKSUM_DETECT_CARRY 0x8000
-
-
-#define PROGRAM_CHECKSUM 0xFFFF // Program's checksum (should be defined in the main program ??)
+#define CHECKSUM_DETECT_CARRY 0x8000						// Used to detect if it is time to ende the shifting in the checksum's algorithm (CRC)
 
 uint16_t generateChecksum(){
 
@@ -83,10 +80,9 @@ int8_t testFlash(uint16_t checksum){
 
 int8_t testRam(uint8_t base, uint8_t top){
 
-		// This tester is based on the MATS++ testing algorithm, so it doesn't detect all types of faults !!!
-	
 	// IMPORTANT NOTES ABOUT THIS TESTER:
-	// 	- it uses only registers for its operation, so the lack of integrity of the ram doesn't matter
+	// 	- This tester is based on the MATS++ testing algorithm, so it doesn't detect all types of faults !!!
+	// 	- it uses only registers for its operation, so if the ram is corrupted it doesn't matter
 	
     register RAM_POINTER* ram_pointer = (RAM_POINTER*) 0x3D;
 	register RAM_POINTER* stack_pointer = !top ? (RAM_POINTER*) ( *(ram_pointer)<<8 | *(ram_pointer + 1)) : (RAM_POINTER*) top;
