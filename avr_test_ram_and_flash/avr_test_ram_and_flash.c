@@ -25,12 +25,10 @@
 		- format the code properly (make it pretty and readable)
 */
 
-#include <stdint.h>	// needed for using data types (C's default ones are implementation dependent so this method is better)
+
 #include <avr/pgmspace.h>	// needed for abstracting the access of the FLASH memory
 
-//#include "avr_test_ram_and_flash.h"
-
-#include <util/delay.h>		// needed for the error function, if you change the function and you don't need delays delete this line !!!
+#include "avr_test_ram_and_flash.h"
 
 #define RAM_SIZE 2048 // Number of addresses in the ATMEGA's SRAM 
 #define RAM_BASE_ADDRESS 0x0100	// SRAM base address (the lower values are reserved for the ATMEGA's registers)
