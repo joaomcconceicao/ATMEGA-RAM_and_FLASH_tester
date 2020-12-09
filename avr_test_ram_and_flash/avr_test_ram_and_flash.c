@@ -1,5 +1,4 @@
 /*
-	
 	ATMEGA RAM and FLASH tester 	Rev 0.1
 	Developed by: Francisco Oliveira & Joao Conceicao
 	02/12/2020
@@ -21,17 +20,15 @@
 		- The testError() function is only to be used as is if the software is to be used in an Arduino UNO platform (ATMEGA328P), if you want to use it differently change the code inside to suit your needs
 	
 	TODO: 	
-		- create a program (probably python) that creates the correct checksum of the compiled program (needs to take into account the bootloader !!!!) and maybe adds it to the checksum line (simple regex or even simpler method)
 		- create fault injection for FLASH memory (maybe an ifdef that injects an extra line of code in the program)
-		- the testRAM() corrupts the stack in its test so maybe find a way to regenerate the stack before returning ? the way it's implemented leaves some dead code after the asm("jmp main \n\t"), the code responsible for the return of the testRAM() function doesn't do anything
 		- add relevant comments
 		- format the code properly (make it pretty and readable)
-		- make this implementable as a library to make it portable
 */
 
 #include <stdint.h>	// needed for using data types (C's default ones are implementation dependent so this method is better)
 #include <avr/pgmspace.h>	// needed for abstracting the access of the FLASH memory
 
+//#include "avr_test_ram_and_flash.h"
 
 #include <util/delay.h>		// needed for the error function, if you change the function and you don't need delays delete this line !!!
 
@@ -46,59 +43,57 @@
 #define FLASH_POINTER uint16_t // The size of the FLASH elements (on ATMEGA328P is 16 bit, change if your platform is different) (ATMEGA328P FLASH size = 32k x 16bit)
 #define FLASH_CHECKSUM uint16_t // Size of the checksum
 
+#define CHECKSUM_DETECT_CARRY 0x8000
+
+
 #define PROGRAM_CHECKSUM 0xFFFF // Program's checksum (should be defined in the main program ??)
 
-//#define RAM_INJECT_FAULT 0x0000  // uncomment to inject a fault as explained in the top of the page
+uint16_t generateChecksum(){
 
-#define TEST_RAM 1 // uncomment to test the RAM (0 for r0 part other value for r1 part of MATS++)
-#define TEST_FLASH 1 // uncomment to test the FLASH (value doesn't matter)
-
-void testError(){	// Function called in the case of an error on testing RAM or FLASH
-  
- DDRB |= (1<<PB5);	// Sets the Arduino pin 13 (on-board led) to output
-  
-  while(1){	// Turns the led on and off every 1000ms (1 second)
-   PORTB |= (1<<PB5); 
-   _delay_ms(1000); 
-    PORTB &= ~(1<<PB5);
-   _delay_ms(1000);  
-  }
-  
-}
-
-#ifdef TEST_FLASH	// uncomment TEST_FASH to test the flash (value doesn't matter)
-void __attribute__((constructor)) TestFLASH(){ // this method is not portable it may not work on all compilers !!! it serves to call this function before the execution of the main function
- 
-	//this function is declared before the RAM tester because if the FLASH memory is corrupted the RAM tester might have the wrong code or corrupted code and it may give false positives or negatives
-	// because of that this tester doesn't use RAM, all variables are stored on registers, and in doing so the integrity of the RAM doesn't matter (it kind of does because the return address is stored on the RAM's stack, so maybe this needs to be changed (store the return address on registers and do a jump maybe))
-	
-	
 	register FLASH_POINTER flash_pointer = (FLASH_POINTER)(FLASH_BASE_ADDRESS);	// loads the base address of the flash memory into a register
+	register FLASH_CHECKSUM checksum_divisor = 0x8005;
+	register uint8_t bit_counter = 0x11;
 	register FLASH_CHECKSUM checksum = 0;						// initializes the checksum register
-  
-	for (flash_pointer = FLASH_BASE_ADDRESS; flash_pointer < (FLASH_POINTER)(FLASH_TOP_ADDRESS); flash_pointer++)	// sweeps trough the whole flash memory
-		checksum += (FLASH_CHECKSUM) pgm_read_word_near(flash_pointer);		// calculates the checksum
-  
-	if(checksum != PROGRAM_CHECKSUM)	// if the checksum doesn't match jump the the error function (maybe discriminate RAM errors from FLASH errors ? )
-		testError();
-
-  	return;
-}
-#endif
-
-#ifdef TEST_RAM	// uncomment TEST_RAM to test the ram (0 for r0 part other value for r1 part of MATS++)
-void __attribute__((constructor)) TestRAM() {  // this method is not portable it may not work on all compilers !!! it serves to call this function before the execution of the main function
+	register FLASH_CHECKSUM checksum_data_to_add;
 	
-	// This tester is based on the MATS++ testing algorithm, so it doesn't detect all types of faults !!!
+	for (flash_pointer = FLASH_BASE_ADDRESS; flash_pointer < (FLASH_POINTER)(FLASH_TOP_ADDRESS); flash_pointer++){	// sweeps trough the whole flash memory
+		
+		checksum_data_to_add = (FLASH_CHECKSUM) pgm_read_word_near(flash_pointer);		// calculates the checksum
+		
+		for(checksum_divisor; checksum_divisor != 0; checksum_divisor--){
+
+			if(checksum_data_to_add & CHECKSUM_DETECT_CARRY)
+				break;
+			
+			checksum_data_to_add = checksum_data_to_add << 1;
+		}
+
+		checksum ^= (FLASH_CHECKSUM) (checksum_data_to_add << 1);		// calculates the checksum
+	}
+
+	return checksum;
+}
+
+int8_t testFlash(uint16_t checksum){
+
+	if(generateChecksum() != checksum)	// if the checksum doesn't match jump the the error function (maybe discriminate RAM errors from FLASH errors ? )
+		return -1;
+
+  	return 0;
+}
+
+
+int8_t testRam(uint8_t base, uint8_t top){
+
+		// This tester is based on the MATS++ testing algorithm, so it doesn't detect all types of faults !!!
 	
 	// IMPORTANT NOTES ABOUT THIS TESTER:
 	// 	- it uses only registers for its operation, so the lack of integrity of the ram doesn't matter
-	// 	- it corrupts the stack !!!
-	// 	- it leaves some dead code (if you check the assembly code the return part of this function is never used so it's dead code)
 	
-    register RAM_POINTER *ram_pointer = (RAM_POINTER*)(RAM_BASE_ADDRESS);	// loads the base address of the ATMEGA's SRAM
-
-    for (ram_pointer = (RAM_POINTER *) RAM_BASE_ADDRESS; ram_pointer < (RAM_POINTER*)(RAM_TOP_ADDRESS); ram_pointer++)	// sweeps trough the whole ram memory
+    register RAM_POINTER* ram_pointer = (RAM_POINTER*) 0x3D;
+	register RAM_POINTER* stack_pointer = !top ? (RAM_POINTER*) ( *(ram_pointer)<<8 | *(ram_pointer + 1)) : (RAM_POINTER*) top;
+	
+    for (ram_pointer =  (RAM_POINTER *)base; ram_pointer < (RAM_POINTER *)((RAM_POINTER *)stack_pointer); ram_pointer++)	// sweeps trough the whole ram memory
         *ram_pointer = (RAM_POINTER) 0;											// writes all 0's to the current address
 
 #ifdef RAM_INJECT_FAULT		// this code is used to inject faults (see top of page to see explanation) 			
@@ -107,12 +102,13 @@ void __attribute__((constructor)) TestRAM() {  // this method is not portable it
 		ram_pointer = (RAM_POINTER *)(RAM_INJECT_FAULT + RAM_BASE_ADDRESS);
   		*ram_pointer = (RAM_POINTER) 0;
 	}
+
 #endif
 
-	for (ram_pointer = (RAM_POINTER *) RAM_BASE_ADDRESS; ram_pointer < (RAM_POINTER*)(RAM_TOP_ADDRESS); ram_pointer++){ // sweeps trough the whole ram memory
+	for (ram_pointer =  (RAM_POINTER *)base; ram_pointer < (RAM_POINTER *)((RAM_POINTER *)stack_pointer); ram_pointer++){ // sweeps trough the whole ram memory
 
       if(*ram_pointer != (RAM_POINTER) 0)										// checks if the current address has the expected value (all 0's) if not it goes to the error function
-      		testError();
+      		return -1;
     	
       *ram_pointer = (RAM_POINTER) 0xFF;										// writes all 1's to the current address
       }
@@ -127,17 +123,15 @@ void __attribute__((constructor)) TestRAM() {  // this method is not portable it
 
 #endif
  
-  	for (ram_pointer = (RAM_POINTER *) RAM_BASE_ADDRESS; ram_pointer < (RAM_POINTER*)(RAM_TOP_ADDRESS); ram_pointer++){ // sweeps trough the whole ram memory
+  	for (ram_pointer =  (RAM_POINTER *)base; ram_pointer < (RAM_POINTER *)((RAM_POINTER *)stack_pointer); ram_pointer++){ // sweeps trough the whole ram memory
 
         if(*ram_pointer != (RAM_POINTER) 0xFF) // checks if the current address has the expected value (all 1's) if not it goes to the error function
- 			testError();
+ 			return -1;
         
     }
 
-   asm("jmp main \n\t");	// jumps to the main() function; this is where the dead code problem resides. This is necessary because of the corruption of the stack, so the return address is lost.
-	return;	// This is never called so all of the code (poping from stack and returning) related to this is never called ! It's dead code so it's dangerous and it's wasteful, so if a better implementation is found this will be imediatly replaced !!!!
- } 
-#endif
+	
+	return 0;	
 
-int main (){
+	
 }
