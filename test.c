@@ -9,8 +9,9 @@
 		- Software to test the integrity of RAM and FLASH memory on ATMEGA devices, using the MATS++ algorithm for testing RAM and using a checksum to test the FLASH in order to preserve the lifespan of the FLASH memory
 	
 		- Supports injection of faults:
-			-> for RAM: define (uncomment) RAM_INJECTION_FAULT and the value will be the address to be corrupted (the address is relative to RAM_BASE_ADDRESS)
-				- as of now it only supports corrupts on the last step of the MATS++ algorithm (when it checks if all cells are written to 1)
+			-> for RAM: uncomment TEST_RAM 
+				-define (uncomment) RAM_INJECTION_FAULT and the value will be the address to be corrupted (the address is relative to RAM_BASE_ADDRESS)
+				-set TEST_RAM to 0 for r0 part of the MATS++ algorithm and set to other value for the r1 part of MATS++
 			-> for FLASH: not yet implemented
 	
 	Tested on:
@@ -19,9 +20,9 @@
 	NOTE: 	- It may work on different ATMEGA ICs but the RAM and FLASH addresses need to be changed accordingly !!!
 		- The testError() function is only to be used as is if the software is to be used in an Arduino UNO platform (ATMEGA328P), if you want to use it differently change the code inside to suit your needs
 	
-	TODO: 	- create a program (probably python) that creates the correct checksum of the compiled program (needs to take into account the bootloader !!!!) and maybe adds it to the checksum line (simple regex or even simpler method)
+	TODO: 	
+		- create a program (probably python) that creates the correct checksum of the compiled program (needs to take into account the bootloader !!!!) and maybe adds it to the checksum line (simple regex or even simpler method)
 		- create fault injection for FLASH memory (maybe an ifdef that injects an extra line of code in the program)
-		- allow for injecting faults in different parts of the random testing and maybe allow for random faults
 		- the testRAM() corrupts the stack in its test so maybe find a way to regenerate the stack before returning ? the way it's implemented leaves some dead code after the asm("jmp main \n\t"), the code responsible for the return of the testRAM() function doesn't do anything
 		- add relevant comments
 		- format the code properly (make it pretty and readable)
@@ -49,7 +50,7 @@
 
 //#define RAM_INJECT_FAULT 0x0000  // uncomment to inject a fault as explained in the top of the page
 
-#define TEST_RAM 1 // uncomment to test the RAM (value doesn't matter)
+#define TEST_RAM 1 // uncomment to test the RAM (0 for r0 part other value for r1 part of MATS++)
 #define TEST_FLASH 1 // uncomment to test the FLASH (value doesn't matter)
 
 void testError(){	// Function called in the case of an error on testing RAM or FLASH
