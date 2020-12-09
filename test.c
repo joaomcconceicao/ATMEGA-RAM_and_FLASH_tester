@@ -85,7 +85,7 @@ void __attribute__((constructor)) TestFLASH(){ // this method is not portable it
 }
 #endif
 
-#ifdef TEST_RAM	// uncomment TEST_RAM to test the ram (value doesn't matter)
+#ifdef TEST_RAM	// uncomment TEST_RAM to test the ram (0 for r0 part other value for r1 part of MATS++)
 void __attribute__((constructor)) TestRAM() {  // this method is not portable it may not work on all compilers !!! it serves to call this function before the execution of the main function
 	
 	// This tester is based on the MATS++ testing algorithm, so it doesn't detect all types of faults !!!
@@ -99,7 +99,15 @@ void __attribute__((constructor)) TestRAM() {  // this method is not portable it
 
     for (ram_pointer = (RAM_POINTER *) RAM_BASE_ADDRESS; ram_pointer < (RAM_POINTER*)(RAM_TOP_ADDRESS); ram_pointer++)	// sweeps trough the whole ram memory
         *ram_pointer = (RAM_POINTER) 0;											// writes all 0's to the current address
-    
+
+#ifdef RAM_INJECT_FAULT		// this code is used to inject faults (see top of page to see explanation) 			
+  	
+	if(!TEST_RAM){
+		ram_pointer = (RAM_POINTER *)(RAM_INJECT_FAULT + RAM_BASE_ADDRESS);
+  		*ram_pointer = (RAM_POINTER) 0;
+	}
+#endif
+
 	for (ram_pointer = (RAM_POINTER *) RAM_BASE_ADDRESS; ram_pointer < (RAM_POINTER*)(RAM_TOP_ADDRESS); ram_pointer++){ // sweeps trough the whole ram memory
 
       if(*ram_pointer != (RAM_POINTER) 0)										// checks if the current address has the expected value (all 0's) if not it goes to the error function
@@ -110,8 +118,12 @@ void __attribute__((constructor)) TestRAM() {  // this method is not portable it
 
   
 #ifdef RAM_INJECT_FAULT		// this code is used to inject faults (see top of page to see explanation) 			
-  	ram_pointer = (RAM_POINTER *)(RAM_INJECT_FAULT + RAM_BASE_ADDRESS);
-  	*ram_pointer = (RAM_POINTER) 0;
+  	
+	if(!TEST_RAM){
+		ram_pointer = (RAM_POINTER *)(RAM_INJECT_FAULT + RAM_BASE_ADDRESS);
+  		*ram_pointer = (RAM_POINTER) 0;
+	}
+
 #endif
  
   	for (ram_pointer = (RAM_POINTER *) RAM_BASE_ADDRESS; ram_pointer < (RAM_POINTER*)(RAM_TOP_ADDRESS); ram_pointer++){ // sweeps trough the whole ram memory
