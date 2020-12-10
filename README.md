@@ -18,11 +18,25 @@ This tester has been developed and verified for the ATMEGA328P present in the Ar
 ## Tester algorithms
 ### RAM
 
-The algorithm used for testing the ATMEGA's RAM is the Mats++ that operates in the following way: {⇕ (w(0)); ⇑ r(0),w(1)); ⇓ (r(1) , w(0), r(0)) }
+The algorithm used for testing the ATMEGA's RAM is the Mats++, and irredundant march test algorithm, that operates in the following way: 
+<p align="center">
+{⇕ (w(0)); ⇑ r(0),w(1)); ⇓ (r(1) , w(0), r(0)) }
+</p>
 
-There are other algorithms :
+There are other algorithms:
 
-![Other testing algorithms](/img/ram_tests.jpeg)
+<p align="center">
+  <img width="460" height="300" src="/img/ram_tests.jpeg">
+</p>
+<p align="center">
+  <sub>
+Note: we apologise for the low resolution image but it was the only that we could find
+  </sub>
+</p>
+
+
+As you can see by the table this algorithm doesn't cover all typed of faults, so if you need a more complete coverage of faults I would recommend the MARCH C-, although this has almost double the number of operations than the algorithm used in this tester.
+
 ### Flash
 ## Using this library 
 ## Built-in example
