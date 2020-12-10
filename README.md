@@ -15,6 +15,8 @@ It can be used with an already existing program with minimal modifications.
 
 This tester has been developed and verified for the ATMEGA328P present in the Arduino UNO (or equivelent clones) board, but with some little modifications (mainly the #defines in the .c file of the library) it can be ported to other ATMEGA MCUs or other AVR ASM compatible MCUs.
 
+Since this library was developed with PlatformIO, for you to use it standalone all you need to do is copu the files in (/lib/avr_test_ram_and_flash).
+
 ## Tester algorithms
 ### RAM
 
@@ -48,10 +50,26 @@ Note: we apologise for the low quality image but it was the only that we could f
 </p>
 
 
-As you can see by the table this algorithm doesn't cover all typed of faults, so if you need a more complete coverage of faults I would recommend the MARCH C-, although this has almost double the number of operations than the algorithm used in this tester.
+As you can see by the table this algorithm doesn't cover all typed of faults, so if you need a more complete coverage of faults we would recommend the MARCH C-, although this has almost double the number of operations than the algorithm used in this tester. As with most things, choose the one that better suits your needs and requirements.
 
 ### Flash
+
+
+
 ## Using this library 
+
+In order to use this library all you need to do is import the .h file and call the testFlash() and testRam() whenever you need them. Note that the RAM function has arguments : testRam(uint8_t base, uint8_t top), and unless you know what you are doing never set the top value to an high value because it might corrupt the stack, so if you pass it 0 it will ignore the stack. 
+
+In the .h file there is the possibility to test the RAM and the Flash before main is called (by the order they're presented here) by uncomenting (defining) the following #define:
+* TEST_FLASH (value doesn't matter) - it saves the checksum in the ATMEGA's EEPROM at the address CHECKSUM_EEPROM_ADDRESS. In the case that you want to reset the value in the EEPROM uncoment (define) RESET_CHECKSUM and program and run the program once, then coment (undefine) it to use it again.
+* TEST_RAM (value doesn't matter unless you intend to inject faults (will be explained next))
+
+In the .h file, if the previously mentioned enviroment variables are defined you can inject faults by uncomenting (defining) the following #define:
+* FLASH_INJECT_FAULT (value sets the address to corrupt, DO NOT SET TO VALUE OCCUPIED BY THE BOOTLOADER) 
+* RAM_INJECT_FAULT (value sets the address to corrupt) - if TEST_RAM is set to 0 it will corrupt the RAM between the first and second operation of the MATS++ algorithm and if you set it to any other value it will corrupt the RAM between the second and last operation
+
+
+
 ## Built-in example
 ## Known issues
 
