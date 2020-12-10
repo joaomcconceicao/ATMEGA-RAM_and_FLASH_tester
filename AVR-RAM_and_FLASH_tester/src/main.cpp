@@ -1,3 +1,11 @@
+/*
+	ATMEGA RAM and FLASH tester example 	Rev 0.1
+	Developed by: Francisco Oliveira & Joao Conceicao
+    10/12/2020
+
+    CHECK THE GITHUB'S README FOR AN EXPLANATION OF HOW TO USE THIS EXAMPLE
+*/
+
 #include <avr_test_ram_and_flash.h>
 
 #define TEST_RAM 1 // uncomment to test the RAM (if RAM_INJECT_FAULT is defined: 0 for r0 part other value for r1 part of MATS++)
