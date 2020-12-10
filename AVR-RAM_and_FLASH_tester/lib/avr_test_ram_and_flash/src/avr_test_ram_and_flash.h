@@ -4,6 +4,7 @@
 #include <avr/pgmspace.h>	// needed for abstracting the read of the FLASH memory
 #include <stdint.h>	// needed for using data types (C's default ones are implementation dependent so this method is better)
 
+#include <util/delay.h> // used for the default testError() function (to blink PB5 every second), if you change the function you can delete this
 
 //#define TEST_RAM 1 // uncomment to test the RAM (if RAM_INJECT_FAULT is defined: 0 for r0 part other value for r1 part of MATS++)
 //#define RAM_INJECT_FAULT 0x0000  // uncomment to inject a fault (value sets the address to be corrupted)
@@ -13,17 +14,24 @@
 
 //#define RESET_CHECKSUM 1
 
+
+#define F_CPU   1600000UL	// Change to your MCU's clock frequency (only needed if you use the default testError() function, otherwise you can delete this)
+ 
 #define CHECKSUM_EEPROM_ADDRESS 0x0000
 
 int8_t testFlash();
 int8_t testRam(uint8_t base, uint8_t top);
 uint16_t generateChecksum();
 
-void testError(void arg){
+void testError(){
 
     DDRB |= (1<<PB5);
-    PORTB |= (1<<PB5);
-
+	while(1){
+    	PORTB |= (1<<PB5);
+		_delay_ms(1000);
+		PORTB &= ~(1<<PB5);
+		_delay_ms(1000);
+	}
 }
 
 #ifdef TEST_RAM	// uncomment TEST_RAM to test the ram (0 for r0 part other value for r1 part of MATS++)
