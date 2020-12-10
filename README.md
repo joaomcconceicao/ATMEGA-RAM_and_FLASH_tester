@@ -22,7 +22,7 @@ The algorithm used for testing the ATMEGA's RAM is the Mats++ that operates in t
 
 There are other algorithms :
 
-![Other testing algorithms]()
+![Other testing algorithms](/img/ram_tests.jpeg)
 ### Flash
 ## Using this library 
 ## Built-in example
