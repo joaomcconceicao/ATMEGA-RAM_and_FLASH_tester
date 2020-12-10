@@ -25,7 +25,7 @@ Since this library was developed with PlatformIO, for you to use it standalone a
 
 The algorithm used for this is the CRC (Cyclic Redundancy Check) that is extensively explained in an Aplication Note by ATMEL (now Microchip), the makers of the ATMEGA. This explains way better and in more detail than we would be able to do here, so go to the provided link and read it if you're interested.
 
-[CRC ATMLES Aplication Note](http://ww1.microchip.com/downloads/en/AppNotes/doc1143.pdf)
+[AVR236: CRC Check of Program Memory; ATMEL/MICROCHIP Aplication Note](http://ww1.microchip.com/downloads/en/AppNotes/doc1143.pdf)
 
 #### Notes
 
