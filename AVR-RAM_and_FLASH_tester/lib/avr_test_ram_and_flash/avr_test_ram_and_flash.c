@@ -102,7 +102,7 @@ int8_t testRam(uint8_t base, uint8_t top){
 
 #ifdef RAM_INJECT_FAULT		// this code is used to inject faults (see top of page to see explanation) 			
   	
-	if(!TEST_RAM){
+	if(!TEST_RAM ){
 		ram_pointer = (RAM_POINTER *)(RAM_INJECT_FAULT + RAM_BASE_ADDRESS);
   		*ram_pointer = (RAM_POINTER) 0;
 	}
@@ -120,18 +120,23 @@ int8_t testRam(uint8_t base, uint8_t top){
   
 #ifdef RAM_INJECT_FAULT		// this code is used to inject faults (see top of page to see explanation) 			
   	
-	if(!TEST_RAM){
+	if(TEST_RAM){
 		ram_pointer = (RAM_POINTER *)(RAM_INJECT_FAULT + RAM_BASE_ADDRESS);
   		*ram_pointer = (RAM_POINTER) 0;
 	}
 
 #endif
  
-  	for (ram_pointer =  (RAM_POINTER *)base; ram_pointer < (RAM_POINTER *)((RAM_POINTER *)stack_pointer); ram_pointer++){ // sweeps trough the whole ram memory
+  	for (ram_pointer =  (RAM_POINTER *)stack_pointer; ram_pointer < (RAM_POINTER *)((RAM_POINTER *)base); ram_pointer--){ // sweeps trough the whole ram memory
 
-        if(*ram_pointer != (RAM_POINTER) 0xFF) // checks if the current address has the expected value (all 1's) if not it goes to the error function
+        if(*ram_pointer != (RAM_POINTER) 0xFF) 		// checks if the current address has the expected value (all 1's) if not it goes to the error function
  			return -1;
         
+		*ram_pointer = (RAM_POINTER) 0;	
+
+		if(*ram_pointer != (RAM_POINTER) 0)										// checks if the current address has the expected value (all 0's) if not it goes to the error function
+      		return -1;
+
     }
 
 	
