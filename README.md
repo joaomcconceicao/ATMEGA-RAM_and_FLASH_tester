@@ -23,6 +23,10 @@ Since this library was developed with PlatformIO, for you to use it standalone a
 
 #### Explanation
 
+The algorithm used for this is the CRC (Cyclic Redundancy Check) that is extensively explained in an Aplication Note by ATMEL (now Microchip), the makers of the ATMEGA. This explains way better and in more detail than we would be able to do here, so go to the provided link and read it if you're interested.
+
+[CRC ATMLES Aplication Note](http://ww1.microchip.com/downloads/en/AppNotes/doc1143.pdf)
+
 #### Notes
 
 The way this algorithm was implemented it only uses registers, so the issues with the RAM won't affect this tester.
@@ -76,9 +80,9 @@ In the .h file there is the possibility to test the RAM and the Flash before mai
 * TEST_FLASH (value doesn't matter) - it saves the checksum in the ATMEGA's EEPROM at the address CHECKSUM_EEPROM_ADDRESS. In the case that you want to reset the value in the EEPROM uncoment (define) RESET_CHECKSUM and program and run the program once, then coment (undefine) it to use it again.
 * TEST_RAM (value doesn't matter unless you intend to inject faults (will be explained next))
 
-<b>NOTE: this pre-main tests use void __attribute__((constructor)) that are unique to GCC and may not work on all version of it, so this is not portable ! Please be aware of that and if this doesn't work just copy the contents of the tests to the first lines of main (so they are executed before the main program)</b>
-
 When the tests fail they cal the testError() function, that in the default case just blinks PINB5, so if you want it to do something different change the code inside that function.
+
+<b>NOTE: this pre-main tests use void __attribute__((constructor)) functions that are unique to GCC and may not work on all version of it, so this is not portable! Please be aware of that and if this doesn't work just copy the contents of the pre-main tests to the first lines of main (so they are executed before the main program)</b>
 
 In the .h file, if the previously mentioned enviroment variables are defined you can inject faults by uncomenting (defining) the following #define:
 * FLASH_INJECT_FAULT (value sets the address to corrupt, DO NOT SET TO VALUE OCCUPIED BY THE BOOTLOADER) 
