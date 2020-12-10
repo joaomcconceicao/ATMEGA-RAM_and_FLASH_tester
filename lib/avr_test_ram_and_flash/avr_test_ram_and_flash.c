@@ -6,13 +6,27 @@
 
 	Explanation:
 	
-		- Software to test the integrity of RAM and FLASH memory on ATMEGA devices, using the MATS++ algorithm for testing RAM and using a checksum to test the FLASH in order to preserve the lifespan of the FLASH memory
+		- Software to test the integrity of RAM and FLASH memory on ATMEGA devices, using the MATS++ algorithm for testing RAM and using a checksum (CRC) to test the FLASH in order to preserve the lifespan of the FLASH memory
 	
 		- Supports injection of faults:
+
 			-> for RAM: uncomment TEST_RAM 
-				-define (uncomment) RAM_INJECTION_FAULT and the value will be the address to be corrupted (the address is relative to RAM_BASE_ADDRESS)
-				-set TEST_RAM to 0 for r0 part of the MATS++ algorithm and set to other value for the r1 part of MATS++
-			-> for FLASH: not yet implemented
+				- define (uncomment) RAM_INJECTION_FAULT and the value will be the address to be corrupted (the address is relative to RAM_BASE_ADDRESS)
+				- set TEST_RAM to 0 for r0 part of the MATS++ algorithm and set to other value for the r1 part of MATS++
+				- program and run the program
+				- if the test fails the PB5 pin (on an Arduino Uno board it's the user LED) will blink forever (the program will be stuck in a loop forever !)
+
+			-> for FLASH: uncomment TEST_FLASH
+
+				You'll need to program the ATMEGA twice:
+					1.
+						- define (uncomment) RESET_CHECKSUM (value doesn't matter) and the checksum for your program will be written to the EEPROM address CHECKSUM_EEPROM_ADDRESS
+						- program and run the program once
+					2.
+						- undefine (comment) RESET_CHECKSUM
+						- define (uncomment) FLASH_INJECTION_FAULT and the value will be the address to be corrupted (the address is relative to FLASH_BASE_ADDRESS (use only addresses not used by the bootloader !!!!)) 
+						- program and run the program
+						- if the test fails the PB5 pin (on an Arduino Uno board it's the user LED) will blink forever (the program will be stuck in a loop forever !)
 	
 	Tested on:
 		- ATMEGA328P
@@ -20,13 +34,9 @@
 	NOTE: 	- It may work on different ATMEGA ICs but the RAM and FLASH addresses need to be changed accordingly !!!
 	
 	TODO: 	
-		- create fault injection for FLASH memory (maybe an ifdef that injects an extra line of code in the program)
-		- format the code properly (make it pretty and readable)
 		- for some reason using the #define has a return types for functions or as arguments gives a does not name a type error
 */
 
-
-#include <avr/pgmspace.h>	// needed for abstracting the access of the FLASH memory
 
 #include "avr_test_ram_and_flash.h"
 

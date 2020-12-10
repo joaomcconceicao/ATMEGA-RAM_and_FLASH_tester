@@ -1,11 +1,16 @@
 #include <stdint.h>
-#include <avr/eeprom.h>
+#include <avr/eeprom.h>     // needed for writing and reading from the EEPROM
+#include <avr/boot.h>       // needed for abstracting the writing of faults to the FLASH memory
+#include <avr/pgmspace.h>	// needed for abstracting the read of the FLASH memory
 #include <stdint.h>	// needed for using data types (C's default ones are implementation dependent so this method is better)
 
-//#define RAM_INJECT_FAULT 0x0000  // uncomment to inject a fault as explained in the top of the page
 
-//#define TEST_RAM 1 // uncomment to test the RAM (0 for r0 part other value for r1 part of MATS++)
+//#define TEST_RAM 1 // uncomment to test the RAM (if RAM_INJECT_FAULT is defined: 0 for r0 part other value for r1 part of MATS++)
+//#define RAM_INJECT_FAULT 0x0000  // uncomment to inject a fault (value sets the address to be corrupted)
+
 //#define TEST_FLASH 1 // uncomment to test the FLASH (value doesn't matter)
+//#define FLASH_INJECT_FAULT 0x0000 // uncomment to inject a fault (value sets the address (try to use low values (on the ATMEGA328p >0x00FF) because it might corrupt the bootloader !!!))
+
 //#define RESET_CHECKSUM 1
 
 #define CHECKSUM_EEPROM_ADDRESS 0x0000
@@ -16,7 +21,8 @@ uint16_t generateChecksum();
 
 void testError(void arg){
 
-
+    DDRB |= (1<<PB5);
+    PORTB |= (1<<PB5);
 
 }
 
@@ -37,14 +43,19 @@ void testError(void arg){
 		// because of that this tester doesn't use RAM, all variables are stored on registers, and in doing so the integrity of the RAM doesn't matter (it kind of does because the return address is stored on the RAM's stack, so maybe this needs to be changed (store the return address on registers and do a jump maybe))
 #ifdef  RESET_CHECKSUM
 
-        eeprom_write_word(CHECKSUM_EEPROM_ADDRESS, 0x0000);
+        eeprom_write_word(CHECKSUM_EEPROM_ADDRESS, generateChecksum());
 
 #endif
 #ifndef RESET_CHECKSUM		
-        if(!eeprom_read_word(CHECKSUM_EEPROM_ADDRESS))
-            eeprom_write_word(CHECKSUM_EEPROM_ADDRESS, generateChecksum());
 
-		if(testFlash())
+#ifdef FLASH_INJECT_FAULT
+
+    boot_page_fill (FLASH_INJECT_FAULT, 0xFFFF);
+    boot_spm_busy_wait ();  
+
+#endif
+        
+		if(testFlash((uint16_t)eeprom_read_word(CHECKSUM_EEPROM_ADDRESS)))
 			testError();
 #endif
 	}
