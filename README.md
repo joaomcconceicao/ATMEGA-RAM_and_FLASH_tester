@@ -26,7 +26,7 @@ The algorithm used for testing the ATMEGA's RAM is the Mats++, and irredundant m
 There are other algorithms:
 
 <p align="center">
-  <img width="460" height="300" src="/img/ram_tests.jpeg">
+  <img width="460" height="300" src="/img/ram_tests_table.jpeg">
 </p>
 <p align="center">
   <sub>
