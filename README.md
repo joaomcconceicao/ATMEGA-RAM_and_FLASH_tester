@@ -76,6 +76,8 @@ In the .h file there is the possibility to test the RAM and the Flash before mai
 * TEST_FLASH (value doesn't matter) - it saves the checksum in the ATMEGA's EEPROM at the address CHECKSUM_EEPROM_ADDRESS. In the case that you want to reset the value in the EEPROM uncoment (define) RESET_CHECKSUM and program and run the program once, then coment (undefine) it to use it again.
 * TEST_RAM (value doesn't matter unless you intend to inject faults (will be explained next))
 
+When the tests fail they cal the testError() function, that in the default case just blinks PINB5, so if you want it to do something different change the code inside that function.
+
 In the .h file, if the previously mentioned enviroment variables are defined you can inject faults by uncomenting (defining) the following #define:
 * FLASH_INJECT_FAULT (value sets the address to corrupt, DO NOT SET TO VALUE OCCUPIED BY THE BOOTLOADER) 
 * RAM_INJECT_FAULT (value sets the address to corrupt) - if TEST_RAM is set to 0 it will corrupt the RAM between the first and second operation of the MATS++ algorithm and if you set it to any other value it will corrupt the RAM between the second and last operation
@@ -83,6 +85,21 @@ In the .h file, if the previously mentioned enviroment variables are defined you
 The Flash test is ran first because if the Flash memory is corrupted it is of no use to continue running the program.
 
 ## Built-in example
+
+The example given is the main.cpp file, that as you can se only includes the library and the important enviroment variables.
+It is mean't to test the RAM and the Flash before executing the main function so if you want add whatever code you'd like.
+This example is meant to be used with an ATMEGA328P Arduino UNO (or clone equivelent) board !
+
+Watch the User LED (connected to pin 13), if the test fails it blinks otherwise it stays off.
+
+To use it do the following:
+
+1. Program and run the program as given
+2. The ATMEGA's RAM and Flash will be tested, but if you MCU isn't faulty the LED won't blink
+3. Comment (undefine) RESET_CHECKSUM , and uncomment RAM_INJECT_FAULT and/or FLASH_INJECT_FAULT, depending on if you want to inject a fault in the RAM and/or in the Flash, and set addresses if you like (default works fine)
+4. Program and run the program again
+5. The LED will blink because the tester found an error
+
 ## Known issues
 
 1. For some reason the return types and arguments of the functions cannot be defined by #define (they give a "does not name a type" error), maybe this is a limitation of the version of the AVR's GCC compiler used by the Arduino IDE. So because of this in order to be used with some other ATMEGA MCU with different RAM and/or Flash configurations you may need to modify these parts accordingly. The same thing applies for the checksum algorithm, if you want a different size checksum you'll need to change the argument of the generateChecksum() function and maybe some internal variable sizes.
