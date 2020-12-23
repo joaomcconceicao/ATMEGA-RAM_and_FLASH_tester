@@ -6,7 +6,7 @@
 4. [Built-in example](#Built-in-example)
 5. [Known issues](#Known-issues)
 6. [Future improvements](#Future-improvements)
-
+7. [Previous versions](#Previous-versions)
 
 ## Introduction
 
@@ -74,44 +74,47 @@ The way this algorithm was implemented it only uses registers, so the issues wit
 
 ## Using this library 
 
-In order to use this library all you need to do is import the .h file and call the testFlash() and testRam() whenever you need them. Note that the RAM function has arguments : testRam(uint8_t base, uint8_t top), and unless you know what you are doing never set the top value to an high value because it might corrupt the stack, so if you pass it 0 it will ignore the stack. 
+By default the library will test the RAM and the FLASH before calling main, so it's easier to integrate with existing programs. For this GCC's function attributes are used, and this is considered not portable, so if this doesn't work for you erase the  __attribute__((constructor)) and just call the function in the first lines of your program's main function.
 
-In the .h file there is the possibility to test the RAM and the Flash before main is called (by the order they're presented here) by uncomenting (defining) the following #define:
-* TEST_FLASH (value doesn't matter) - it saves the checksum in the ATMEGA's EEPROM at the address CHECKSUM_EEPROM_ADDRESS. In the case that you want to reset the value in the EEPROM uncoment (define) RESET_CHECKSUM and program and run the program once, then coment (undefine) it to use it again.
-* TEST_RAM (value doesn't matter unless you intend to inject faults (will be explained next))
+You'll need to define an error function, that needs to be <b>void TestError()</b> in your program, that will be called when an error is deteted in your program. If you don't do this the program will compile but it will have an undefined behaviour.
 
-When the tests fail they cal the testError() function, that in the default case just blinks PINB5, so if you want it to do something different change the code inside that function.
+You also need to define the program's checksum and for that use the python script present in the GitHu
 
-<b>NOTE: this pre-main tests use void __attribute__((constructor)) functions that are unique to GCC and may not work on all version of it, so this is not portable! Please be aware of that and if this doesn't work just copy the contents of the pre-main tests to the first lines of main (so they are executed before the main program)</b>
+If you want to disable any of the testers, just define the according XXX_DISABLE_TESTER in the .h file or in your program.
 
-In the .h file, if the previously mentioned enviroment variables are defined you can inject faults by uncomenting (defining) the following #define:
-* FLASH_INJECT_FAULT (value sets the address to corrupt, DO NOT SET TO VALUE OCCUPIED BY THE BOOTLOADER) 
-* RAM_INJECT_FAULT (value sets the address to corrupt) - if TEST_RAM is set to 0 it will corrupt the RAM between the first and second operation of the MATS++ algorithm and if you set it to any other value it will corrupt the RAM between the second and last operation
+If you want to inject faults, see the .h file for an explanation.
 
 The Flash test is ran first because if the Flash memory is corrupted it is of no use to continue running the program.
 
 ## Built-in example
 
-The example given is the main.cpp file, that as you can se only includes the library and the important enviroment variables.
-It is mean't to test the RAM and the Flash before executing the main function so if you want add whatever code you'd like.
+The example given is the main.cpp file, that as you can se only includes the library and the important checksum and the error function.
+It is meant to test the RAM and the Flash before executing the main function so if you want add whatever code you'd like. (Calculate the Checksum before programing the device !!!)
 This example is meant to be used with an ATMEGA328P Arduino UNO (or clone equivelent) board !
 
-Watch the User LED (connected to pin 13), if the test fails it blinks otherwise it stays off.
+Watch the User LED (connected to pin 13), if the test fails it stays on otherwise it stays off.
 
 To use it do the following:
 
 1. Program and run the program as given
-2. The ATMEGA's RAM and Flash will be tested, but if you MCU isn't faulty the LED won't blink
-3. Comment (undefine) RESET_CHECKSUM , and uncomment RAM_INJECT_FAULT and/or FLASH_INJECT_FAULT, depending on if you want to inject a fault in the RAM and/or in the Flash, and set addresses if you like (default works fine)
+2. The ATMEGA's RAM and Flash will be tested, but if you MCU isn't faulty the LED won't turn on
+3. Properly define any of the fault injections mentioned in the .h file
 4. Program and run the program again
-5. The LED will blink because the tester found an error
+5. The LED will stay on because the tester found an error
 
 ## Known issues
 
-1. For some reason the return types and arguments of the functions cannot be defined by #define (they give a "does not name a type" error), maybe this is a limitation of the version of the AVR's GCC compiler used by the Arduino IDE. So because of this in order to be used with some other ATMEGA MCU with different RAM and/or Flash configurations you may need to modify these parts accordingly. The same thing applies for the checksum algorithm, if you want a different size checksum you'll need to change the argument of the generateChecksum() function and maybe some internal variable sizes.
+1. Doesn't test the SRAM memory that is part of the stack
 
 ## Future improvements
 
-1. Fix the issue with the #defines mentioned in the first point of the [Known issues](#Known-issues)
-2. Integrate the testing of the stack (right now you'll need to first run testRam(RAM_BASE_ADDRESS, 0) and then backup the stack to another part of ram and then run testRam(0, RAM_TOP_ADDRESS). As you can see this isn't the greatest implementation
-3. The saving of the checksum value to the ATMEGA's EEPROM assumes that the checksum is 16 bit, so that part needs to be extended for other values (such as 8, 32 and 64 bit, they are natively supported by the AVR-GCC)
+1. Allow for the testing of the SRAM memory that is part of the stack
+
+## Previous versions
+
+In the previous version there was a couple of problems that made the tester lock up the MCU when they were ran:
+
+1. In the RAM tester the calculation of the stack pointer address was wrong, it made it so that the lower and upper byte were flipped, so the tester tested the whole memory of the ATMEGA and that would corrupt both the registers and the stack.
+2. In the FLASH memory the was an error in the ammount of steps to be made by each iteration of the algorithm, and it would always give 0
+
+Also in the previous version the initial checksum was calculated in the device itself, and since the device's FLASH memory could already be corrupted, the calculated checksum would be invalid, unless if a new corruption occured after that initial calculation. This is clearly wrong. The EEPROM was also used to store the checksum, and that wasn't correct, since the EEPROM itself could be corrupted, and that memory is outside the scope of this project.
