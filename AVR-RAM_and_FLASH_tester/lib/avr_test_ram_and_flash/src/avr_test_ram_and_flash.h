@@ -1,110 +1,180 @@
 /*
-	ATMEGA RAM and FLASH tester 	Rev 0.4
+	ATMEGA RAM and FLASH tester 	Rev 1.0
 	Developed by: Francisco Oliveira & Joao Conceicao
-	07/12/2020
+	17/12/2020
 	
+	To see how to use this library check the Github. 
 
 	Explanation:
 	
 		- Software to test the integrity of RAM and FLASH memory on ATMEGA devices, using the MATS++ algorithm for testing RAM and using a checksum (CRC) to test the FLASH in order to preserve the lifespan of the FLASH memory
 	
-		- Supports injection of faults:
-
-			-> for RAM: uncomment TEST_RAM 
-				- define (uncomment) RAM_INJECTION_FAULT and the value will be the address to be corrupted (the address is relative to RAM_BASE_ADDRESS)
-				- set TEST_RAM to 0 for r0 part of the MATS++ algorithm and set to other value for the r1 part of MATS++
-				- program and run the program
-				- if the test fails the PB5 pin (on an Arduino Uno board it's the user LED) will blink forever (the program will be stuck in a loop forever !)
-
-			-> for FLASH: uncomment TEST_FLASH
-
-				You'll need to program the ATMEGA twice:
-					1.
-						- define (uncomment) RESET_CHECKSUM (value doesn't matter) and the checksum for your program will be written to the EEPROM address CHECKSUM_EEPROM_ADDRESS
-						- program and run the program once
-					2.
-						- undefine (comment) RESET_CHECKSUM
-						- define (uncomment) FLASH_INJECTION_FAULT and the value will be the address to be corrupted (the address is relative to FLASH_BASE_ADDRESS (use only addresses not used by the bootloader !!!!)) 
-						- program and run the program
-						- if the test fails the PB5 pin (on an Arduino Uno board it's the user LED) will blink forever (the program will be stuck in a loop forever !)
-	
+		- Supports injection of faults
+		
+		
 	Tested on:
 		- ATMEGA328P
 	
 	NOTE: 	- It may work on different ATMEGA ICs but the RAM and FLASH addresses need to be changed accordingly !!!
 	
-	TODO: 	
-		- for some reason using the #define has a return types for functions or as arguments gives a does not name a type error
 */
 
+//#define RAM_DISABLE_TESTER 0		// Define to disable the RAM tester
 
-#include <stdint.h>
-#include <avr/eeprom.h>     // needed for writing and reading from the EEPROM
-#include <avr/boot.h>       // needed for abstracting the writing of faults to the FLASH memory
-#include <avr/pgmspace.h>	// needed for abstracting the read of the FLASH memory
-#include <stdint.h>	// needed for using data types (C's default ones are implementation dependent so this method is better)
+// Fault injection: Both of these need to be defined in order to inject faults!!
+//#define RAM_INJECT_FAULT_STEP 0	// Define to select in wich step the fault is to be injected (before each of the read operations of the MATS++ test 
+//#define RAM_INJECT_FAULT_ADDRESS 0 	// Define to select in wich address the fault is to be injected, this address will be offseted by RAM_BASE_ADDRESS addresses
 
-#include <util/delay.h> // used for the default testError() function (to blink PB5 every second), if you change the function you can delete this
-#define F_CPU   1600000UL	// Change to your MCU's clock frequency (only needed if you use the default testError() function, otherwise you can delete this)
+//#define FLASH_DISABLE_TESTER 0	// Define to disable the FLASH tester
+//#define FLASH_INJECT_FAULT_ADDRESS 0	// Defines in wich address to inject the fault (for simplicity the fault injector inverts the value read)
 
-//#define TEST_RAM 1 // uncomment to test the RAM (if RAM_INJECT_FAULT is defined: 0 for r0 part other value for r1 part of MATS++)
-//#define RAM_INJECT_FAULT 0x0000  // uncomment to inject a fault (value sets the address to be corrupted)
+#include <avr/io.h>
+#include <inttypes.h>
+#include <avr/pgmspace.h>
+#include <stdlib.h>
 
-//#define TEST_FLASH 1 // uncomment to test the FLASH (value doesn't matter)
-//#define FLASH_INJECT_FAULT 0x0000 // uncomment to inject a fault (value sets the address (try to use low values (on the ATMEGA328p >0x00FF) because it might corrupt the bootloader !!!))
+#define RAM_SIZE 2048					// Size of the RAM in RAM_POINTER addresses 
+#define RAM_BASE_ADDRESS 0x0100				// Base address of the SRAM (do not put an addess that is part of the registers, as this will stop the program)
+#define RAM_TOP_ADDRESS (RAM_BASE_ADDRESS + RAM_SIZE)	// Top address of the SRAM
+#define RAM_POINTER uint8_t				// Size of the RAM values
 
-//#define RESET_CHECKSUM 1
- 
-#define CHECKSUM_EEPROM_ADDRESS 0x0000	// The EEPROM address to save the Flash checksum
+#define FLASH_SIZE 0x3FFF 					// Size of the FLASH
+#define FLASH_BASE_ADDRESS 0x0000				// Base address of the FLASH
+#define FLASH_TOP_ADDRESS (FLASH_BASE_ADDRESS + FLASH_SIZE) 	// Top address of the FLASh
+#define FLASH_POINTER uint16_t					// Size of the FLASH values
+#define FLASH_CHECKSUM_SIZE uint16_t				// Size of the desired checksum
+#define FLASH_CHECKSUM_BIT_COUNTER 0x11				// Number of maximum shifts to do in the CRC's algorithm
+#define FLASH_CHECKSUM_DIVISOR 0x8005				// Divisor value in the CRC's algorithm
+#define FLASH_CHECKSUM_DETECT_CARRY 0x8000			// Used to detect if the carry condition of the CRC's
 
-int8_t testFlash();
-int8_t testRam(uint8_t base, uint8_t top);
-uint16_t generateChecksum();
+extern void TestError(void);					// Function to be called when one of the tests fails, define in your program
+	
+extern FLASH_CHECKSUM_SIZE PROGRAM_CHECKSUM;			// FLASH cehcksum value, declare in your program
 
+#ifndef RAM_DISABLE_TESTER
+void __attribute__((constructor)) __TEST_RAM() {		// This function will be the last one called before the execution of main (this method is not portable, so if you want to use as a normal function remove the  __attribute__((constructor)) and declare this function first in your program)
 
-// Function that is called if you use the tests before executing main, in this case it only blinks the LED
-void testError(){
-
-    DDRB |= (1<<PB5);
-	while(1){
-    	PORTB |= (1<<PB5);
-		_delay_ms(1000);
-		PORTB &= ~(1<<PB5);
-		_delay_ms(1000);
+	register RAM_POINTER* current_address;			// Pointer to sweep trough the RAM addresses
+	register RAM_POINTER* base_address = (RAM_POINTER*) RAM_BASE_ADDRESS; // Pointer to the base address of the RAM
+	register RAM_POINTER* top_address = (RAM_POINTER*) ((SPH<<8)|(SPL));  // Pointer to the begining of the stack
+	
+	for(current_address = base_address; current_address < top_address; current_address++ ){	// First step of MATS++: write 0s to all addresses
+		(*current_address) = (RAM_POINTER) 0;
 	}
+	
+#ifdef RAM_INJECT_FAULT_STEP	// If you want to inject a fault in this part
+	
+	#ifdef RAM_INJECT_FAULT_ADDRESS
+	
+		if(RAM_INJECT_FAULT_STEP == 0){
+			current_address = (RAM_POINTER*) RAM_INJECT_FAULT_ADDRESS;
+			(*current_address) = (RAM_POINTER) -1;		// Write all 1's to the address
+		}
+		
+	#endif
+	
+#endif
+	
+	for(current_address = base_address; current_address < top_address; current_address++ ){	// Second step of MATS++: read 0s and write 1s to all addresses, if the read 0s has an error goto TestError()
+		
+		if((RAM_POINTER) 0 != (*current_address)){
+			TestError();
+			return;
+		}
+		
+		(*current_address) = (RAM_POINTER) -1;
+	}
+
+#ifdef RAM_INJECT_FAULT_STEP	// If you want to inject a fault in this part
+
+	#ifdef RAM_INJECT_FAULT_ADDRESS
+
+		if(RAM_INJECT_FAULT_STEP == 1){
+			current_address = (RAM_POINTER*) RAM_INJECT_FAULT_ADDRESS;
+			(*current_address) = (RAM_POINTER) 0;	// Write all 0's to the address
+		}
+
+	#endif
+
+#endif
+	
+	for(current_address = top_address - 1; current_address > base_address; current_address-- ){ // Third step of MATS++: read 1s , write 0s and read 0s to all addresses, if the read 1s or the read 0s has an error goto TestError()
+		
+		
+		if(((RAM_POINTER) -1) != (*current_address)){
+			TestError();
+			return;
+		}
+		
+		(*current_address) = (RAM_POINTER) 0;
+
+#ifdef RAM_INJECT_FAULT_STEP // If you want to inject a fault in this part
+
+	#ifdef RAM_INJECT_FAULT_ADDRESS
+
+		if(RAM_INJECT_FAULT_STEP == 2){
+			current_address = (RAM_POINTER*) RAM_INJECT_FAULT_ADDRESS;
+			(*current_address) = (RAM_POINTER) -1;	// Write all 1's to the address
+		}
+
+	#endif
+
+#endif
+		
+		if((RAM_POINTER) 0 != (*current_address)){
+			TestError();
+			return;	
+		}
+	}
+	
+	return;
 }
 
-#ifdef TEST_FLASH	// uncomment TEST_FASH to test the flash (value doesn't matter)
-	void __attribute__((constructor)) TestFLASH(){ // this method is not portable it may not work on all compilers !!! it serves to call this function before the execution of the main function
+#endif
+
+
+#ifndef FLASH_DISABLE_TESTER
+
+void __attribute__((constructor)) __TEST_FLASH(){ // This function will be the first one called before the execution of main (this method is not portable, so if you want to use as a normal function remove the  __attribute__((constructor)) and declare this function first in your program)
 	
-		//this function is declared before the RAM tester because if the FLASH memory is corrupted the RAM tester might have the wrong code or corrupted code and it may give false positives or negatives
-		// because of that this tester doesn't use RAM, all variables are stored on registers, and in doing so the integrity of the RAM doesn't matter (it kind of does because the return address is stored on the RAM's stack, so maybe this needs to be changed (store the return address on registers and do a jump maybe))
-
-#ifdef  RESET_CHECKSUM
-
-        eeprom_write_word(CHECKSUM_EEPROM_ADDRESS, generateChecksum());	// Writes the Flash contents checksum to the EEPROM at address CHECKSUM_EEPROM_ADDRESS
-
-#endif
-#ifndef RESET_CHECKSUM		
-
-#ifdef FLASH_INJECT_FAULT
-
-    boot_page_fill (FLASH_INJECT_FAULT, 0xFFFF);	// writes all 1s to the address FLASH_INJECT_FAULT (all 1's is highly unlikely to occur so it's a good value)
-    boot_spm_busy_wait ();  			// waits for the flash write to be done
-
-#endif
-        
-		if(testFlash((uint16_t)eeprom_read_word(CHECKSUM_EEPROM_ADDRESS)))	// Checks if the checksum in the EEPROM is correct
-			testError();
-#endif
-	}
-#endif
-
-#ifdef TEST_RAM	// uncomment TEST_RAM to test the ram (0 for r0 part other value for r1 part of MATS++)
-	void __attribute__((constructor)) TestRAM() {  // this method is not portable it may not work on all compilers !!! it serves to call this function before the execution of the main function
-
-		if(testRam(RAM_BASE_ADDRESS, 0))	// checks if the RAM isn't corrupted
-            testError();
+	register FLASH_POINTER current_address = (FLASH_POINTER) FLASH_BASE_ADDRESS;		// Base address of FLASH
+	register FLASH_POINTER top_address = (FLASH_POINTER) FLASH_TOP_ADDRESS;			// Top address of FLASH
+	register FLASH_CHECKSUM_SIZE divisor = (FLASH_CHECKSUM_SIZE) FLASH_CHECKSUM_DIVISOR; 	// Divisor of the CRC's algorithm (value given in the Github's reference manual)
+	register FLASH_CHECKSUM_SIZE step_counter = (FLASH_CHECKSUM_SIZE) 0; 			// Counts the number of shifts made 
+	register FLASH_CHECKSUM_SIZE max_steps = (FLASH_CHECKSUM_SIZE) (FLASH_CHECKSUM_BIT_COUNTER - 1); // Maximum number of shifts to be done
+	register FLASH_CHECKSUM_SIZE checksum = (FLASH_CHECKSUM_SIZE) 0;			// The programs checksum
+	register FLASH_CHECKSUM_SIZE accumulator = (FLASH_CHECKSUM_SIZE) 0;			// Used to perform the necessery operations before xor with checksum
+	register FLASH_CHECKSUM_SIZE detect_carry = (FLASH_CHECKSUM_SIZE) FLASH_CHECKSUM_DETECT_CARRY;	// Used to detect the carry condition from the CRC's algorithm
+	
+	for(current_address; current_address < top_address; current_address++){			// The CRC's algorithm
 		
-	} 
+		accumulator = (FLASH_CHECKSUM_SIZE) pgm_read_word_near(current_address) ^ divisor;
+		
+#ifdef	FLASH_INJECT_FAULT_ADDRESS	// To inject faults, the inclusion of this code will by default corrupt the checksum (it introduces extra instruction) so the if is redundant, unless you include this in the checksum calculation	
+		
+		if(current_address  == (FLASH_POINTER) FLASH_INJECT_FAULT_ADDRESS)
+			accumulator ~= accumulator;
+		
 #endif
+		for(step_counter = 0; step_counter < max_steps ; step_counter++){
+			
+			if(accumulator & detect_carry){
+				break;
+			}
+			
+			accumulator = accumulator << 1;
+			
+		}
+		
+		checksum ^= (FLASH_CHECKSUM_SIZE) (accumulator);
+		
+	}
+	
+	if(PROGRAM_CHECKSUM != checksum){		// Checks if the calculated checksum is correct if not goto TestError()
+		TestError();
+	}
+	return;
+}
+
+#endif
+
