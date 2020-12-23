@@ -6,6 +6,8 @@
     CHECK THE GITHUB'S README FOR AN EXPLANATION OF HOW TO USE THIS EXAMPLE
 */
 
+#include <avr_test_ram_and_flash.h>
+
 FLASH_CHECKSUM_SIZE PROGRAM_CHECKSUM = 0x0000;
 
 void TestError(void){
