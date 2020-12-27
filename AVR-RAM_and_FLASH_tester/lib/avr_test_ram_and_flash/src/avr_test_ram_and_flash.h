@@ -145,6 +145,7 @@ void __attribute__((constructor)) __TEST_FLASH(){ // This function will be the f
 	register FLASH_CHECKSUM_SIZE checksum = (FLASH_CHECKSUM_SIZE) 0;			// The programs checksum
 	register FLASH_CHECKSUM_SIZE accumulator = (FLASH_CHECKSUM_SIZE) 0;			// Used to perform the necessery operations before xor with checksum
 	register FLASH_CHECKSUM_SIZE detect_carry = (FLASH_CHECKSUM_SIZE) FLASH_CHECKSUM_DETECT_CARRY;	// Used to detect the carry condition from the CRC's algorithm
+	register FLASH_CHECKSUM_SIZE checksum_real = (FLASH_CHECKSUM_SIZE) PROGRAM_CHECKSUM;
 	
 	for(current_address; current_address < top_address; current_address++){			// The CRC's algorithm
 		
@@ -170,7 +171,21 @@ void __attribute__((constructor)) __TEST_FLASH(){ // This function will be the f
 		
 	}
 	
-	if(PROGRAM_CHECKSUM != checksum){		// Checks if the calculated checksum is correct if not goto TestError()
+	accumulator = PROGRAM_CHECKSUM;
+	
+	for(step_counter = 0; step_counter < max_steps ; step_counter++){
+			
+		if(accumulator & detect_carry){
+			break;
+		}
+
+		accumulator = accumulator << 1;
+
+	}
+
+	checksum_real ^= (FLASH_CHECKSUM_SIZE) (accumulator);
+	
+	if(checksum_real != checksum){		// Checks if the calculated checksum is correct if not goto TestError()
 		TestError();
 	}
 	return;
