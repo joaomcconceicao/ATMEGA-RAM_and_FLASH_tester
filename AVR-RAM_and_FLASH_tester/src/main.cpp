@@ -1,15 +1,8 @@
-/*
-	ATMEGA RAM and FLASH tester example 	Rev 1.0
-	Developed by: Francisco Oliveira & Joao Conceicao
-   	17/12/2020
+#include "avr_mem_test.h"
 
-    CHECK THE GITHUB'S README FOR AN EXPLANATION OF HOW TO USE THIS EXAMPLE
-*/
+const FLASH_POINTER PROGRAM_CHECKSUM_[1] PROGMEM= {0xaaaa};	// Insert here the checksum calculated in the python checksum generator
 
-#include <avr_test_ram_and_flash.h>
-
-FLASH_CHECKSUM_SIZE PROGRAM_CHECKSUM = 0x0000;
-
+// Define here what should be done if the testers find a fault
 void TestError(void){
 	
 	DDRB |= (1<<PB5);
@@ -19,9 +12,9 @@ void TestError(void){
 }
 
 
-
+// Apart from the previous mandatory declarations, you can program whatever this tester will always automatically run before any program  
 int main(void)
 {
-
+	
 }
 
