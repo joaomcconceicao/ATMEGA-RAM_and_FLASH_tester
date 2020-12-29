@@ -30,6 +30,7 @@ The algorithm used for this is the CRC (Cyclic Redundancy Check) that is extensi
 #### Notes
 
 The way this algorithm was implemented it only uses registers, so the issues with the RAM won't affect this tester.
+The way the algorithm was implemented is slightly different, but the base idea is exactly the same.
 
 ### RAM
 
@@ -78,7 +79,7 @@ By default the library will test the RAM and the FLASH before calling main, so i
 
 You'll need to define an error function, that needs to be <b>void TestError()</b> in your program, that will be called when an error is deteted in your program. If you don't do this the program will compile but it will have an undefined behaviour.
 
-You also need to define the program's checksum and for that use the python script present in the GitHu
+You also need to declare the program's checksum and for that use the Debuggin capability of the Platform IDE (or Microchip AVR studio) by setting the final if in the tester function as a breakpoint, and copy the checksum variable value to were you declared the checksum.
 
 If you want to disable any of the testers, just define the according XXX_DISABLE_TESTER in the .h file or in your program.
 
@@ -105,10 +106,13 @@ To use it do the following:
 ## Known issues
 
 1. Doesn't test the SRAM memory that is part of the stack
+2. The implementation of the CRC algorithm isn't exactly the same as the one propesed in the Application Note, so the checking of the checksum doesn't return 0 as it's supposed to. This doesn't affect the checking capability of the implemented CRC, but it's common pratice for CRC's to return 0 when the algorithm doesn't detect faults.
 
 ## Future improvements
 
 1. Allow for the testing of the SRAM memory that is part of the stack
+2. Development of a program that automaticly generates and declares the checksum, with no need for the intervention of the user
+3. Improve the implementation of the CRC algorithm
 
 ## Previous versions
 
