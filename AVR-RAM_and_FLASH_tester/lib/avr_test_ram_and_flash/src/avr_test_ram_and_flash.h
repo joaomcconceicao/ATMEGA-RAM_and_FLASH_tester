@@ -22,11 +22,11 @@
 //#define RAM_DISABLE_TESTER 0		// Define to disable the RAM tester
 
 // Fault injection: Both of these need to be defined in order to inject faults!!
-//#define RAM_INJECT_FAULT_STEP 0	// Define to select in wich step the fault is to be injected (before each of the read operations of the MATS++ test 
-//#define RAM_INJECT_FAULT_ADDRESS 0 	// Define to select in wich address the fault is to be injected, this address will be offseted by RAM_BASE_ADDRESS addresses
+//#define RAM_INJECT_FAULT_STEP 0	// Define to select in which step the fault is to be injected (before each of the read operations of the MATS++ test 
+//#define RAM_INJECT_FAULT_ADDRESS 0 	// Define to select in which address the fault is to be injected, this address will be offset ed by RAM_BASE_ADDRESS addresses
 
 //#define FLASH_DISABLE_TESTER 0	// Define to disable the FLASH tester
-//#define FLASH_INJECT_FAULT_ADDRESS 0	// Defines in wich address to inject the fault (for simplicity the fault injector inverts the value read)
+//#define FLASH_INJECT_FAULT_ADDRESS 0	// Defines in which address to inject the fault (for simplicity the fault injector inverts the value read)
 
 #include <avr/io.h>
 #include <inttypes.h>
@@ -34,7 +34,7 @@
 #include <stdlib.h>
 
 #define RAM_SIZE 2048					// Size of the RAM in RAM_POINTER addresses 
-#define RAM_BASE_ADDRESS 0x0100				// Base address of the SRAM (do not put an addess that is part of the registers, as this will stop the program)
+#define RAM_BASE_ADDRESS 0x0100				// Base address of the SRAM (do not put an address that is part of the registers, as this will stop the program)
 #define RAM_TOP_ADDRESS (RAM_BASE_ADDRESS + RAM_SIZE)	// Top address of the SRAM
 #define RAM_POINTER uint8_t				// Size of the RAM values
 
@@ -49,7 +49,8 @@
 
 extern void TestError(void);					// Function to be called when one of the tests fails, define in your program
 	
-extern FLASH_CHECKSUM_SIZE PROGRAM_CHECKSUM;			// FLASH cehcksum value, declare in your program
+extern const FLASH_POINTER 	PROGRAM_CHECKSUM_[1] PROGMEM;		// FLASH checksum value, declare in your program
+
 
 #ifndef RAM_DISABLE_TESTER
 void __attribute__((constructor)) __TEST_RAM() {		// This function will be the last one called before the execution of main (this method is not portable, so if you want to use as a normal function remove the  __attribute__((constructor)) and declare this function first in your program)
@@ -139,55 +140,36 @@ void __attribute__((constructor)) __TEST_FLASH(){ // This function will be the f
 	
 	register FLASH_POINTER current_address = (FLASH_POINTER) FLASH_BASE_ADDRESS;		// Base address of FLASH
 	register FLASH_POINTER top_address = (FLASH_POINTER) FLASH_TOP_ADDRESS;			// Top address of FLASH
-	register FLASH_CHECKSUM_SIZE divisor = (FLASH_CHECKSUM_SIZE) FLASH_CHECKSUM_DIVISOR; 	// Divisor of the CRC's algorithm (value given in the Github's reference manual)
-	register FLASH_CHECKSUM_SIZE step_counter = (FLASH_CHECKSUM_SIZE) 0; 			// Counts the number of shifts made 
-	register FLASH_CHECKSUM_SIZE max_steps = (FLASH_CHECKSUM_SIZE) (FLASH_CHECKSUM_BIT_COUNTER - 1); // Maximum number of shifts to be done
 	register FLASH_CHECKSUM_SIZE checksum = (FLASH_CHECKSUM_SIZE) 0;			// The programs checksum
-	register FLASH_CHECKSUM_SIZE accumulator = (FLASH_CHECKSUM_SIZE) 0;			// Used to perform the necessery operations before xor with checksum
-	register FLASH_CHECKSUM_SIZE detect_carry = (FLASH_CHECKSUM_SIZE) FLASH_CHECKSUM_DETECT_CARRY;	// Used to detect the carry condition from the CRC's algorithm
-	register FLASH_CHECKSUM_SIZE checksum_real = (FLASH_CHECKSUM_SIZE) PROGRAM_CHECKSUM;
-	
-	for(current_address; current_address < top_address; current_address++){			// The CRC's algorithm
+	register uint8_t bit_counter;
+
+	for(current_address; current_address < (FLASH_POINTER)(top_address); current_address++){			// The CRC's algorithm
 		
-		accumulator = (FLASH_CHECKSUM_SIZE) pgm_read_word_near(current_address) ^ divisor;
-		
-#ifdef	FLASH_INJECT_FAULT_ADDRESS	// To inject faults, the inclusion of this code will by default corrupt the checksum (it introduces extra instruction) so the if is redundant, unless you include this in the checksum calculation	
-		
-		if(current_address  == (FLASH_POINTER) FLASH_INJECT_FAULT_ADDRESS)
-			accumulator ~= accumulator;
-		
-#endif
-		for(step_counter = 0; step_counter < max_steps ; step_counter++){
-			
-			if(accumulator & detect_carry){
-				break;
-			}
-			
-			accumulator = accumulator << 1;
-			
+		if(current_address == (FLASH_POINTER)PROGRAM_CHECKSUM_){
+			checksum ^= 0x0000;
+		}
+#ifdef FLASH_INJECT_FAULT_ADDRESS		
+		else if (current_address == FLASH_INJECT_FAULT_ADDRESS){
+			checksum ^= ~(FLASH_CHECKSUM_SIZE) pgm_read_word_near(current_address);
+		}
+#endif		
+		else{
+			checksum ^= (FLASH_CHECKSUM_SIZE) pgm_read_word_near(current_address);
 		}
 		
-		checksum ^= (FLASH_CHECKSUM_SIZE) (accumulator);
+		for(bit_counter = (uint8_t)FLASH_CHECKSUM_BIT_COUNTER; bit_counter > 0; bit_counter--){
+			
+			if( checksum & (1 << (sizeof(FLASH_CHECKSUM_SIZE)-1)) ){
+				checksum ^= FLASH_CHECKSUM_DIVISOR;
+			}else
+				checksum = checksum << 1;
+		}
 		
 	}
-	
-	accumulator = PROGRAM_CHECKSUM;
-	
-	for(step_counter = 0; step_counter < max_steps ; step_counter++){
-			
-		if(accumulator & detect_carry){
-			break;
-		}
 
-		accumulator = accumulator << 1;
-
-	}
-
-	checksum_real ^= (FLASH_CHECKSUM_SIZE) (accumulator);
-	
-	if(checksum_real != checksum){		// Checks if the calculated checksum is correct if not goto TestError()
+	if(checksum != pgm_read_word(PROGRAM_CHECKSUM_))
 		TestError();
-	}
+	
 	return;
 }
 
