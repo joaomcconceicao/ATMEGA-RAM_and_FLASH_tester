@@ -1,6 +1,6 @@
 #include "avr_mem_test.h"
 
-const FLASH_POINTER PROGRAM_CHECKSUM_[1] PROGMEM= {0xaaaa};	// Insert here the checksum calculated in the python checksum generator
+const FLASH_POINTER PROGRAM_CHECKSUM_[1] PROGMEM= {0x0000};	// Insert here the checksum calculated in the python checksum generator
 
 // Define here what should be done if the testers find a fault
 void TestError(void){
