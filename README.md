@@ -7,6 +7,7 @@
 5. [Known issues](#Known-issues)
 6. [Future improvements](#Future-improvements)
 7. [Previous versions](#Previous-versions)
+8. [Project Report](#Project-Report)
 
 ## Introduction
 
@@ -122,3 +123,10 @@ In the previous version there was a couple of problems that made the tester lock
 2. In the FLASH memory the was an error in the ammount of steps to be made by each iteration of the algorithm, and it would always give 0
 
 Also in the previous version the initial checksum was calculated in the device itself, and since the device's FLASH memory could already be corrupted, the calculated checksum would be invalid, unless if a new corruption occured after that initial calculation. This is clearly wrong. The EEPROM was also used to store the checksum, and that wasn't correct, since the EEPROM itself could be corrupted, and that memory is outside the scope of this project.
+
+
+
+## Project Report
+
+
+[Report](https://github.com/joaomcconceicao/AVR-RAM_and_FLASH_tester/blob/main/Project_report/SELE___Final_Report.pdf)
